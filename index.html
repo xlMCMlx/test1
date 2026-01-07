@@ -11,9 +11,8 @@
       margin: 0;
       padding: 20px;
     }
-    h1 {
-      text-align: center;
-    }
+    h1 { text-align: center; }
+
     .container {
       max-width: 900px;
       margin: auto;
@@ -27,17 +26,14 @@
       padding: 15px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
-    input, textarea, button, select {
+    input, textarea, button {
       width: 100%;
       margin-top: 8px;
       padding: 8px;
       box-sizing: border-box;
       font-size: 14px;
     }
-    textarea {
-      min-height: 120px;
-      resize: vertical;
-    }
+    textarea { min-height: 120px; }
     button {
       background: #4f46e5;
       color: white;
@@ -45,26 +41,26 @@
       border-radius: 5px;
       cursor: pointer;
     }
-    button:hover {
-      background: #4338ca;
-    }
-    ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
+    button:hover { background: #4338ca; }
+
+    ul { list-style: none; padding: 0; margin: 0; }
     li {
       padding: 8px;
       border-bottom: 1px solid #eee;
-      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
-    li:hover {
-      background: #f1f1f1;
+    li span { cursor: pointer; }
+    li:hover { background: #f1f1f1; }
+
+    .active { font-weight: bold; background: #eef2ff; }
+    .small { font-size: 12px; color: #666; }
+    .danger {
+      background: #dc2626;
+      margin-left: 6px;
     }
-    .small {
-      font-size: 12px;
-      color: #666;
-    }
+    .danger:hover { background: #b91c1c; }
   </style>
 </head>
 <body>
@@ -84,7 +80,7 @@
     <!-- Notes -->
     <div class="card">
       <h3>Notes</h3>
-      <select id="clientSelect"></select>
+      <div id="activeClient" class="small">No client selected</div>
       <textarea id="noteText" placeholder="Write notes here..."></textarea>
       <button onclick="saveNote()">Save Note</button>
 
@@ -94,76 +90,109 @@
   </div>
 
 <script>
-  const STORAGE_KEY = "client_notes_app";
+const STORAGE_KEY = "client_notes_app";
 
-  let data = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
-    clients: {},
-    selectedClient: null
-  };
+let data = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
+  clients: {},
+  selectedClient: null
+};
 
-  function saveData() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  }
+function saveData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
 
-  function addClient() {
-    const name = clientName.value.trim();
-    if (!name || data.clients[name]) return;
-    data.clients[name] = [];
-    data.selectedClient = name;
-    clientName.value = "";
-    saveData();
-    render();
-  }
-
-  function selectClient(name) {
-    data.selectedClient = name;
-    saveData();
-    render();
-  }
-
-  function saveNote() {
-    if (!data.selectedClient) return;
-    const text = noteText.value.trim();
-    if (!text) return;
-    data.clients[data.selectedClient].push({
-      text,
-      time: new Date().toLocaleString()
-    });
-    noteText.value = "";
-    saveData();
-    render();
-  }
-
-  function render() {
-    // Clients list
-    clientList.innerHTML = "";
-    clientSelect.innerHTML = "";
-
-    Object.keys(data.clients).forEach(name => {
-      const li = document.createElement("li");
-      li.textContent = name;
-      li.onclick = () => selectClient(name);
-      clientList.appendChild(li);
-
-      const opt = document.createElement("option");
-      opt.value = name;
-      opt.textContent = name;
-      if (name === data.selectedClient) opt.selected = true;
-      clientSelect.appendChild(opt);
-    });
-
-    // Notes
-    noteList.innerHTML = "";
-    if (data.selectedClient) {
-      (data.clients[data.selectedClient] || []).forEach(n => {
-        const li = document.createElement("li");
-        li.innerHTML = `<div>${n.text}</div><div class="small">${n.time}</div>`;
-        noteList.appendChild(li);
-      });
-    }
-  }
-
+function addClient() {
+  const name = clientName.value.trim();
+  if (!name || data.clients[name]) return;
+  data.clients[name] = [];
+  data.selectedClient = name;
+  clientName.value = "";
+  saveData();
   render();
+}
+
+function deleteClient(name) {
+  if (!confirm(`Delete client "${name}" and all notes?`)) return;
+  delete data.clients[name];
+  if (data.selectedClient === name) data.selectedClient = null;
+  saveData();
+  render();
+}
+
+function selectClient(name) {
+  data.selectedClient = name;
+  saveData();
+  render();
+}
+
+function saveNote() {
+  if (!data.selectedClient) return;
+  const text = noteText.value.trim();
+  if (!text) return;
+  data.clients[data.selectedClient].push({
+    text,
+    time: new Date().toLocaleString()
+  });
+  noteText.value = "";
+  saveData();
+  render();
+}
+
+function deleteNote(index) {
+  if (!confirm("Delete this note?")) return;
+  data.clients[data.selectedClient].splice(index, 1);
+  saveData();
+  render();
+}
+
+function render() {
+  // Active client
+  activeClient.textContent = data.selectedClient
+    ? `Client: ${data.selectedClient}`
+    : "No client selected";
+
+  // Clients
+  clientList.innerHTML = "";
+  Object.keys(data.clients).forEach(name => {
+    const li = document.createElement("li");
+
+    const label = document.createElement("span");
+    label.textContent = name;
+    label.onclick = () => selectClient(name);
+    if (name === data.selectedClient) label.classList.add("active");
+
+    const del = document.createElement("button");
+    del.textContent = "✕";
+    del.className = "danger";
+    del.onclick = () => deleteClient(name);
+
+    li.appendChild(label);
+    li.appendChild(del);
+    clientList.appendChild(li);
+  });
+
+  // Notes
+  noteList.innerHTML = "";
+  if (data.selectedClient) {
+    data.clients[data.selectedClient].forEach((n, i) => {
+      const li = document.createElement("li");
+
+      const content = document.createElement("span");
+      content.innerHTML = `<div>${n.text}</div><div class="small">${n.time}</div>`;
+
+      const del = document.createElement("button");
+      del.textContent = "✕";
+      del.className = "danger";
+      del.onclick = () => deleteNote(i);
+
+      li.appendChild(content);
+      li.appendChild(del);
+      noteList.appendChild(li);
+    });
+  }
+}
+
+render();
 </script>
 </body>
 </html>
